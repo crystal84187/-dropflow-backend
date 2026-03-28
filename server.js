@@ -8,7 +8,9 @@ app.use(express.json());
 
 const ALI_APP_KEY = process.env.ALI_KEY || '530644';
 const ALI_APP_SECRET = process.env.ALI_SECRET || '';
-const ALI_API_URL = 'https://api-sg.aliexpress.com/sync';
+
+// Use the legacy Taobao gateway which works with Drop Shipping apps
+const ALI_API_URL = 'https://gw.api.taobao.com/router/rest';
 
 app.get('/', function(req, res) {
   res.json({ status: 'OK' });
@@ -52,24 +54,24 @@ app.get('/api/aliexpress/search', async function(req, res) {
   }
 
   try {
-    // Use DS (dropshipping) product search - matches your app permissions
     var params = {
-      method: 'aliexpress.ds.product.search',
+      method: 'aliexpress.affiliate.product.query',
       app_key: ALI_APP_KEY,
       sign_method: 'md5',
       timestamp: getTimestamp(),
       format: 'json',
       v: '2.0',
-      product_title: q,
-      page_index: String(page),
+      keywords: q,
+      page_no: String(page),
       page_size: String(limit),
       target_currency: 'USD',
-      target_language: 'EN'
+      target_language: 'EN',
+      tracking_id: 'dropflow'
     };
 
-    if (sort === 'price_asc') params.sort_by = 'PRICE_ASC';
-    if (sort === 'price_desc') params.sort_by = 'PRICE_DESC';
-    if (sort === 'orders') params.sort_by = 'SALE_DESC';
+    if (sort === 'price_asc') params.sort = 'SALE_PRICE_ASC';
+    if (sort === 'price_desc') params.sort = 'SALE_PRICE_DESC';
+    if (sort === 'orders') params.sort = 'LAST_VOLUME_DESC';
 
     params.sign = signRequest(params, ALI_APP_SECRET);
 
@@ -80,20 +82,19 @@ app.get('/api/aliexpress/search', async function(req, res) {
     });
 
     var data = await apiRes.json();
-    console.log('AliExpress DS response:', JSON.stringify(data).slice(0, 400));
+    console.log('AliExpress response:', JSON.stringify(data).slice(0, 400));
 
-    // Try DS response format
-    var result = data && data.aliexpress_ds_product_search_response && data.aliexpress_ds_product_search_response.result;
+    var result = data && data.aliexpress_affiliate_product_query_response && data.aliexpress_affiliate_product_query_response.resp_result;
 
-    if (!result) {
+    if (!result || result.resp_code !== 200) {
       return res.status(502).json({
         error: 'AliExpress API error',
-        detail: 'No result returned',
+        detail: (result && result.resp_msg) || 'Unknown error',
         raw: data
       });
     }
 
-    var products = (result.products && result.products.traffic_product_d_t_o) || [];
+    var products = (result.result && result.result.products && result.result.products.product) || [];
 
     var formatted = products.map(function(p) {
       return {
@@ -105,14 +106,14 @@ app.get('/api/aliexpress/search', async function(req, res) {
         currency: 'USD',
         orders: p.lastest_volume || 0,
         rating: p.evaluate_rate,
-        url: p.product_detail_url,
+        url: p.promotion_link || p.product_detail_url,
         shop: p.shop_name
       };
     });
 
     res.json({
       products: formatted,
-      total: result.total_record_count || formatted.length
+      total: (result.result && result.result.total_record_count) || formatted.length
     });
 
   } catch (err) {
