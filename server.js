@@ -8,9 +8,9 @@ app.use(require('cors')());
 app.use(express.json());
 
 // ── CONFIG ──────────────────────────────────────────────
-const ALIEXPRESS_APP_KEY = '530644';
-const ALIEXPRESS_APP_SECRET = process.env.ALIEXPRESS_APP_SECRET || '';
-const ALIEXPRESS_API_URL = 'https://api-sg.aliexpress.com/sync';
+const ALIEXPRESS_APP_KEY = process.env.ALI_KEY       || '530644';
+const ALIEXPRESS_APP_SECRET = process.env.ALI_SECRET || '';
+const ALIEXPRESS_API_URL   = 'https://api-sg.aliexpress.com/sync';
 
 // ── HEALTH CHECK ─────────────────────────────────────────
 app.get('/', (req, res) => res.json({ status: 'OK' }));
