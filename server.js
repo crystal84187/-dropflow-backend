@@ -52,24 +52,24 @@ app.get('/api/aliexpress/search', async function(req, res) {
   }
 
   try {
+    // Use DS (dropshipping) product search - matches your app permissions
     var params = {
-      method: 'aliexpress.affiliate.product.query',
+      method: 'aliexpress.ds.product.search',
       app_key: ALI_APP_KEY,
       sign_method: 'md5',
       timestamp: getTimestamp(),
       format: 'json',
       v: '2.0',
-      keywords: q,
-      page_no: String(page),
+      product_title: q,
+      page_index: String(page),
       page_size: String(limit),
       target_currency: 'USD',
-      target_language: 'EN',
-      tracking_id: 'dropflow'
+      target_language: 'EN'
     };
 
-    if (sort === 'price_asc') params.sort = 'SALE_PRICE_ASC';
-    if (sort === 'price_desc') params.sort = 'SALE_PRICE_DESC';
-    if (sort === 'orders') params.sort = 'LAST_VOLUME_DESC';
+    if (sort === 'price_asc') params.sort_by = 'PRICE_ASC';
+    if (sort === 'price_desc') params.sort_by = 'PRICE_DESC';
+    if (sort === 'orders') params.sort_by = 'SALE_DESC';
 
     params.sign = signRequest(params, ALI_APP_SECRET);
 
@@ -80,19 +80,20 @@ app.get('/api/aliexpress/search', async function(req, res) {
     });
 
     var data = await apiRes.json();
-    console.log('AliExpress:', JSON.stringify(data).slice(0, 300));
+    console.log('AliExpress DS response:', JSON.stringify(data).slice(0, 400));
 
-    var result = data && data.aliexpress_affiliate_product_query_response && data.aliexpress_affiliate_product_query_response.resp_result;
+    // Try DS response format
+    var result = data && data.aliexpress_ds_product_search_response && data.aliexpress_ds_product_search_response.result;
 
-    if (!result || result.resp_code !== 200) {
+    if (!result) {
       return res.status(502).json({
         error: 'AliExpress API error',
-        detail: (result && result.resp_msg) || 'Unknown error',
+        detail: 'No result returned',
         raw: data
       });
     }
 
-    var products = (result.result && result.result.products && result.result.products.product) || [];
+    var products = (result.products && result.products.traffic_product_d_t_o) || [];
 
     var formatted = products.map(function(p) {
       return {
@@ -101,17 +102,17 @@ app.get('/api/aliexpress/search', async function(req, res) {
         imageUrl: p.product_main_image_url,
         price: p.target_sale_price || p.target_original_price,
         originalPrice: p.target_original_price,
-        currency: p.target_sale_price_currency || 'USD',
+        currency: 'USD',
         orders: p.lastest_volume || 0,
         rating: p.evaluate_rate,
-        url: p.promotion_link || p.product_detail_url,
+        url: p.product_detail_url,
         shop: p.shop_name
       };
     });
 
     res.json({
       products: formatted,
-      total: (result.result && result.result.total_record_count) || formatted.length
+      total: result.total_record_count || formatted.length
     });
 
   } catch (err) {
