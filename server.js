@@ -89,11 +89,10 @@ app.get('/api/aliexpress/search', async function(req, res) {
       page_size: String(limit),
       target_currency: 'USD',
       target_language: 'EN',
-      ship_to_country: 'US'
+      country_code: 'US'
     };
 
     params.sign = signRequest(params, ALI_APP_SECRET);
-
     var data = await httpsPost('api-sg.aliexpress.com', '/sync', params);
     console.log('AliExpress response:', JSON.stringify(data).slice(0, 800));
 
