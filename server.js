@@ -87,7 +87,7 @@ app.get('/api/aliexpress/search', async function(req, res) {
       search_word: q,
       page_index: String(page),
       page_size: String(limit),
-      target_currency: 'USD',
+      currency: 'USD',
       target_language: 'EN',
       countryCode: 'US'
     };
