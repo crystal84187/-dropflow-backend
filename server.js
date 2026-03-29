@@ -89,7 +89,7 @@ app.get('/api/aliexpress/search', async function(req, res) {
       page_size: String(limit),
       target_currency: 'USD',
       target_language: 'EN',
-      country_code: 'US'
+      countryCode: 'US'
     };
 
     params.sign = signRequest(params, ALI_APP_SECRET);
